@@ -58,9 +58,31 @@ export default {
   			md: 'calc(var(--radius) - 2px)',
   			sm: 'calc(var(--radius) - 4px)'
   		},
-		fontFamily: {
-			geist: ['var(--font-geist-sans)', ...fontFamily.sans]
-		}
+  		fontFamily: {
+  			geist: [
+  				'var(--font-geist-sans)',
+                    ...fontFamily.sans
+                ]
+  		},
+  		animation: {
+  			'shiny-text': 'shiny-text 8s infinite',
+  			gradient: 'gradient 8s linear infinite'
+  		},
+  		keyframes: {
+  			'shiny-text': {
+  				'0%, 90%, 100%': {
+  					'background-position': 'calc(-100% - var(--shiny-width)) 0'
+  				},
+  				'30%, 60%': {
+  					'background-position': 'calc(100% + var(--shiny-width)) 0'
+  				}
+  			},
+  			gradient: {
+  				to: {
+  					backgroundPosition: 'var(--bg-size) 0'
+  				}
+  			}
+  		}
   	}
   },
   plugins: [require("tailwindcss-animate")],
