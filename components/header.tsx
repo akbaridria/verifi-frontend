@@ -1,4 +1,4 @@
-import { InteractiveHoverButton } from "./magicui/interactive-hover-button";
+import FormScan from "./form-scan";
 
 /* eslint-disable @next/next/no-img-element */
 const Header = () => {
@@ -14,7 +14,7 @@ const Header = () => {
           <div className="font-bold text-lg">VeriFi</div>
         </div>
         <div>
-            <InteractiveHoverButton className="text-sm!">Start Verification</InteractiveHoverButton>
+          <FormScan />
         </div>
       </div>
     </div>
