@@ -21,6 +21,7 @@
     "@reown/appkit-adapter-ethers": "^1.6.8",
     "@reown/appkit-adapter-wagmi": "^1.6.8",
     "@tanstack/react-query": "^5.66.0",
+    "@types/snarkjs": "^0.7.9",
     "circomlibjs": "^0.1.7",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -32,10 +33,12 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-hook-form": "^7.54.2",
+    "snarkjs": "^0.7.5",
     "tailwind-merge": "^3.0.1",
     "tailwindcss-animate": "^1.0.7",
     "viem": "^2.23.0",
     "wagmi": "^2.14.11",
+    "zkverifyjs": "^0.6.0",
     "zod": "^3.24.1"
   },
   "devDependencies": {

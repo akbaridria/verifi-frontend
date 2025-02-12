@@ -15,6 +15,8 @@ import { AnimatePresence, motion } from "motion/react";
 import SelectNetwork from "./select-network";
 import { ReactNode } from "react";
 import FaceScanner from "./face-scanner";
+import { IProofResponse } from "@/types";
+import ProofSubmissions from "./proof-submission";
 
 const LIST_STEPS = [
   {
@@ -35,8 +37,36 @@ const LIST_STEPS = [
     label: "Submit Proof",
     description: "Submit the generated proof to the network",
     value: 100,
-    component: <div>Proof submission component</div>,
+    component: <ProofSubmissions />,
     stepNumber: 3,
+  },
+];
+
+const LIST_STEPS_PROOF = [
+  {
+    label: "Generate Proof",
+    status: false,
+    loading: true,
+  },
+  {
+    label: "Submit proof to zkVerify (it may take a minutes or two)",
+    status: false,
+    loading: false,
+  },
+  {
+    label: "Transactions accepted in zkVerify",
+    status: false,
+    loading: false,
+  },
+  {
+    label: "Transactions finalized in zkVerify",
+    status: false,
+    loading: false,
+  },
+  {
+    label: "Waiting for attestation to be included in selected network",
+    status: false,
+    loading: false,
   },
 ];
 
@@ -45,22 +75,28 @@ const FormScanContext = createContext<{
   setOpen: React.Dispatch<React.SetStateAction<boolean>>;
   selectedStepIndex: number;
   setSelectedStepIndex: React.Dispatch<React.SetStateAction<number>>;
-  selectedChain: string;
-  setSelectedChain: React.Dispatch<React.SetStateAction<string>>;
+  listSteps: { label: string; status: boolean; loading: boolean }[];
+  setListSteps: React.Dispatch<
+    React.SetStateAction<{ label: string; status: boolean; loading: boolean }[]>
+  >;
+  submittedProof: IProofResponse | null;
+  setSubmittedProof: React.Dispatch<IProofResponse | null>;
 }>({
   open: false,
   setOpen: () => {},
   selectedStepIndex: 0,
   setSelectedStepIndex: () => {},
-  selectedChain: "",
-  setSelectedChain: () => {},
+  listSteps: [],
+  setListSteps: () => {},
+  submittedProof: null,
+  setSubmittedProof: () => {},
 });
 
 const FormScanProvider = ({ children }: { children: ReactNode }) => {
   const [open, setOpen] = useState(false);
   const [selectedStepIndex, setSelectedStepIndex] = useState(0);
-  const [selectedChain, setSelectedChain] = useState("");
-
+  const [listSteps, setListSteps] = useState(LIST_STEPS_PROOF);
+  const [submittedProof, setSubmittedProof] = useState<IProofResponse | null>(null);
   return (
     <FormScanContext.Provider
       value={{
@@ -68,8 +104,10 @@ const FormScanProvider = ({ children }: { children: ReactNode }) => {
         setOpen,
         selectedStepIndex,
         setSelectedStepIndex,
-        selectedChain,
-        setSelectedChain,
+        listSteps,
+        setListSteps,
+        submittedProof,
+        setSubmittedProof
       }}
     >
       {children}

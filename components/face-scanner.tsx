@@ -1,38 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as faceapi from "face-api.js";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "./ui/button";
 import { LoaderCircle } from "lucide-react";
-
-const LIST_STEPS_PROOF = [
-  {
-    label: "Generate Proof",
-    status: false,
-    loading: true,
-  },
-  {
-    label: "Submit proof to zkVerify",
-    status: false,
-    loading: false,
-  },
-  {
-    label: "Transactions accepted in zkVerify",
-    status: false,
-    loading: false,
-  },
-  {
-    label: "Transactions finalized in zkVerify",
-    status: false,
-    loading: false,
-  },
-  {
-    label: "Waiting for transactions to be included in Arbitrum sepolia",
-    status: false,
-    loading: false,
-  },
-];
+import { useAppKitAccount, useAppKitNetwork } from "@reown/appkit/react";
+import { generateInputs, generateProof } from "@/lib/utils";
+import { useFormScan } from "./form-scan";
+import { ethers } from "ethers";
+import { ResponseSubmitProof } from "@/types";
+import { LIST_NETWORKS } from "@/constant/data";
 
 export const FaceScanner = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -41,9 +19,15 @@ export const FaceScanner = () => {
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [faceDetected, setFaceDetected] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  const { toast } = useToast(); // Initialize the toast
+  const { toast } = useToast();
+  const { address } = useAppKitAccount();
+  const { listSteps, setListSteps, setOpen, setSubmittedProof, setSelectedStepIndex } = useFormScan();
+  const { caipNetworkId } = useAppKitNetwork();
+  const zkvContractAddress = useMemo(
+    () => LIST_NETWORKS.find((network) => network.caipNetworkId === caipNetworkId)?.zkVerifyAddress,
+    [caipNetworkId]
+  );
 
-  // Load face-api models
   useEffect(() => {
     const loadModels = async () => {
       try {
@@ -60,7 +44,6 @@ export const FaceScanner = () => {
     loadModels();
   }, []);
 
-  // Start camera stream
   useEffect(() => {
     const startCamera = async () => {
       if (videoRef.current) {
@@ -87,7 +70,6 @@ export const FaceScanner = () => {
     }
   }, [isModelLoaded, toast]);
 
-  // Stop camera stream
   const stopCamera = () => {
     if (videoRef.current?.srcObject) {
       const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
@@ -99,7 +81,6 @@ export const FaceScanner = () => {
     }
   };
 
-  // Detect faces in video stream
   const detectFaces = async () => {
     if (!videoRef.current || !canvasRef.current) return;
 
@@ -108,7 +89,6 @@ export const FaceScanner = () => {
       .withFaceLandmarks()
       .withFaceDescriptors();
 
-    // Draw results on canvas
     const displaySize = {
       width: videoRef.current.videoWidth,
       height: videoRef.current.videoHeight,
@@ -128,18 +108,107 @@ export const FaceScanner = () => {
       stopCamera();
       toast({
         title: "Face Detected",
-        description:
-          "Face detection successful. You can now disable camera permissions.",
+        description: "Face detection successful. You can now disable camera permissions.",
         variant: "default",
       });
       setFaceDetected(true);
-      console.log(detections[0]?.descriptor); // This will log the 128-dimension face embedding
+      handleGenerateProof(detections[0].descriptor);
     } else {
       setErrorMessage("Please hold still and face the camera.");
     }
   };
 
-  // Run face detection when camera is active
+  const handleGenerateProof = useCallback(
+    async (faceEmbeddings: Float32Array<ArrayBufferLike>) => {
+      if (address) {
+        const data = await generateInputs(faceEmbeddings, address);
+        setListSteps((prev) => {
+          const res = prev;
+          res[0].loading = false;
+          res[0].status = true;
+          res[1].loading = true;
+          return res;
+        });
+
+        try {
+          const { proof, publicSignals } = await generateProof(data);
+
+          const response = await fetch("/api/submit-proof", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ proof, publicSignals }),
+          });
+
+          const result: ResponseSubmitProof = await response.json();
+
+          if (result.success) {
+            setListSteps((prev) => {
+              const res = prev;
+              res[1].loading = false;
+              res[1].status = true;
+              res[2].status = true;
+              res[3].status = true;
+              res[4].loading = true;
+              return res;
+            });
+            const { attestationId } = result;
+
+            setSubmittedProof(result);
+
+            // @ts-expect-error msg
+            const provider = new ethers.BrowserProvider(window.ethereum, null, { polling: true });
+            
+            const abiZkvContract = [
+              "event AttestationPosted(uint256 indexed attestationId, bytes32 indexed root)",
+            ];
+
+            const zkvContract = new ethers.Contract(
+              zkvContractAddress || "",
+              abiZkvContract,
+              provider
+            );
+
+            console.log(zkvContractAddress)
+
+            const filterAttestationsById = zkvContract.filters.AttestationPosted(
+              attestationId,
+              null
+            );
+
+            zkvContract.once(filterAttestationsById, async (_id: unknown, _root: unknown) => {
+              console.log(_id, _root)
+              setListSteps((prev) => {
+                const res = prev;
+                res[4].loading = false;
+                res[4].status = true;
+                return res;
+              });
+              setSelectedStepIndex(2);
+            });
+          } else {
+            setOpen(false);
+            setSelectedStepIndex(0);
+            toast({
+              variant: "destructive",
+              title: "Proof Submission Failed, in api calls",
+            });
+          }
+        } catch (error) {
+          console.log(error);
+          setOpen(false);
+          setSelectedStepIndex(0);
+          toast({
+            variant: "destructive",
+            title: "Proof Submission Failed, in try catch",
+          });
+        }
+      }
+    },
+    [address, setListSteps, setOpen, setSelectedStepIndex, setSubmittedProof, toast, zkvContractAddress]
+  );
+
   useEffect(() => {
     let intervalId: NodeJS.Timeout;
 
@@ -156,48 +225,23 @@ export const FaceScanner = () => {
     <div className="flex flex-col items-center space-y-4">
       {!faceDetected && (
         <div className="relative w-full">
-          <video
-            ref={videoRef}
-            autoPlay
-            muted
-            playsInline
-            style={{ width: "100%", aspectRatio: "16/13" }}
-          />
-          <canvas
-            ref={canvasRef}
-            className="absolute w-full top-0 left-0 z-10"
-          />
+          <video ref={videoRef} autoPlay muted playsInline style={{ width: "100%", aspectRatio: "16/13" }} />
+          <canvas ref={canvasRef} className="absolute w-full top-0 left-0 z-10" />
         </div>
       )}
       {faceDetected && (
         <>
           <div className="space-y-2 w-full pb-4 px-4">
-            {LIST_STEPS_PROOF.map((item) => {
-              return (
-                <div className="flex items-center gap-2" key={item.label}>
-                  <div
-                    className={`w-2 rounded-full aspect-square ${
-                      item.status || item.loading
-                        ? "bg-primary"
-                        : "bg-muted-foreground"
-                    }`}
-                  />
-                  <div
-                    className={`${
-                      item.loading || item.status
-                        ? "text-primary font-semibold"
-                        : "text-muted-foreground"
-                    }`}
-                  >
-                    {item.label}
-                  </div>
-                  {item.loading && (
-                    <LoaderCircle className="animate-spin" size={14} />
-                  )}
-                  {!item.loading && item.status && <div>✅</div>}
+            {listSteps.map((item) => (
+              <div className="flex items-center gap-2" key={item.label}>
+                <div className={`w-2 rounded-full aspect-square ${item.status || item.loading ? "bg-primary" : "bg-muted-foreground"}`} />
+                <div className={`${item.loading || item.status ? "text-primary font-semibold" : "text-muted-foreground"}`}>
+                  {item.label}
                 </div>
-              );
-            })}
+                {item.loading && <LoaderCircle className="animate-spin" size={14} />}
+                {!item.loading && item.status && <div>✅</div>}
+              </div>
+            ))}
           </div>
           <div className="pb-4 px-4 w-full">
             <Button variant="default" className="w-full" disabled>
@@ -206,9 +250,7 @@ export const FaceScanner = () => {
           </div>
         </>
       )}
-      {errorMessage && (
-        <div className="text-red-500 font-medium">{errorMessage}</div>
-      )}
+      {errorMessage && <div className="text-red-500 font-medium">{errorMessage}</div>}
     </div>
   );
 };

@@ -1,6 +1,9 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { buildPoseidon, Poseidon } from "circomlibjs";
+import { IProof } from "@/types";
+import * as snarkjs from "snarkjs";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -33,13 +36,13 @@ async function hashLargeArrayMatchingCircuit(
 }
 
 export async function generateInputs(
-  faceEmbeddings: Float32Array[],
+  faceEmbeddings: Float32Array<ArrayBufferLike>,
   evmAccount: string
 ) {
   const poseidon = await buildPoseidon();
-  const cleanFaceEmbeddings = faceEmbeddings.map(
-    (embedding) => Math.abs(Number(embedding)) * 1_000_000
-  );
+  const cleanFaceEmbeddings = Array.from(faceEmbeddings)
+    .slice(0, 128)
+    .map((embedding) => Math.floor(Math.abs(Number(embedding)) * 1_000_000));
 
   // should be fixed only the system know
   // it can be a formula from the face embedding value or pre-defined constant value
@@ -58,7 +61,7 @@ export async function generateInputs(
 
   const input = {
     address: evmAccount,
-    face_embeddings: faceEmbeddings,
+    face_embeddings: cleanFaceEmbeddings,
     expected_hash: expectedHash,
     secretSalt: secretSalt.toString(),
     secretValue: secretValue.toString(),
@@ -66,3 +69,77 @@ export async function generateInputs(
 
   return input;
 }
+
+export async function generateProof(input: IProof) {
+  const { proof, publicSignals } = await snarkjs.groth16.fullProve(
+    input as any,
+    "./circuit/circuit.wasm",
+    "./circuit/circuit.zkey"
+  );
+
+  console.log("Proof generated!!", publicSignals);
+
+  return {
+    proof,
+    publicSignals,
+  };
+}
+
+export const abiVeriFiContract = [
+  {
+    type: "constructor",
+    inputs: [
+      { name: "_zkvContract", type: "address", internalType: "address" },
+      { name: "_vkHash", type: "bytes32", internalType: "bytes32" },
+    ],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "PROVING_SYSTEM_ID",
+    inputs: [],
+    outputs: [{ name: "", type: "bytes32", internalType: "bytes32" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "isVerified",
+    inputs: [{ name: "", type: "address", internalType: "address" }],
+    outputs: [{ name: "", type: "bool", internalType: "bool" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "proveYouAreHuman",
+    inputs: [
+      { name: "attestationId", type: "uint256", internalType: "uint256" },
+      { name: "merklePath", type: "bytes32[]", internalType: "bytes32[]" },
+      { name: "leafCount", type: "uint256", internalType: "uint256" },
+      { name: "index", type: "uint256", internalType: "uint256" },
+    ],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "vkHash",
+    inputs: [],
+    outputs: [{ name: "", type: "bytes32", internalType: "bytes32" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "zkvContract",
+    inputs: [],
+    outputs: [{ name: "", type: "address", internalType: "address" }],
+    stateMutability: "view",
+  },
+  {
+    type: "event",
+    name: "SuccessfulProofSubmission",
+    inputs: [
+      { name: "from", type: "address", indexed: true, internalType: "address" },
+    ],
+    anonymous: false,
+  },
+] as const;

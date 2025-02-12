@@ -9,6 +9,7 @@ export const LIST_NETWORKS: {
   supported: boolean;
   caipNetworkId: string;
   chain: any;
+  verifiAddress: string;
   appkitnetwork: AppKitNetwork;
 }[] = [
   {
@@ -17,6 +18,7 @@ export const LIST_NETWORKS: {
     supported: false,
     caipNetworkId: "eip155:11155111",
     chain: "",
+    verifiAddress: "",
     appkitnetwork: {
       caipNetworkId: "eip155:11155111",
       id: "0xaa36a7",
@@ -41,6 +43,7 @@ export const LIST_NETWORKS: {
     supported: false,
     caipNetworkId: "eip155:33111",
     chain: "",
+    verifiAddress: "",
     appkitnetwork: {
       caipNetworkId: "eip155:33111",
       id: "0x8157",
@@ -65,6 +68,7 @@ export const LIST_NETWORKS: {
     supported: false,
     caipNetworkId: "eip155:1663",
     chain: "",
+    verifiAddress: "",
     appkitnetwork: {
       caipNetworkId: "eip155:1663",
       id: "0x67f",
@@ -89,6 +93,7 @@ export const LIST_NETWORKS: {
     supported: true,
     caipNetworkId: "eip155:421614",
     chain: arbitrumSepolia,
+    verifiAddress: "0xc3CA499981193750E5Ad450545e9276C482568e4",
     appkitnetwork: {
       caipNetworkId: "eip155:421614",
       id: "0x66eee",
@@ -113,6 +118,7 @@ export const LIST_NETWORKS: {
     supported: true,
     caipNetworkId: "eip155:656476",
     chain: eduTestnet,
+    verifiAddress: "0x464b6a935f2363779fFADEf46f0263E53ae67D20",
     appkitnetwork: {
       caipNetworkId: "eip155:656476",
       id: "0xa045c",
@@ -132,3 +138,4 @@ export const LIST_NETWORKS: {
     },
   },
 ];
+
