@@ -51,6 +51,7 @@ const ProofSubmissions = () => {
             BigInt(leafIndex),
           ],
         });
+        setStatus(SubmissionStatus.SUCCESS);
         console.log(`Tx sent to EVM, tx-hash ${hash}`);
       } catch (error) {
         console.error("Transaction failed:", error);

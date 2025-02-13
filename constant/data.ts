@@ -93,7 +93,7 @@ export const LIST_NETWORKS: {
     supported: true,
     caipNetworkId: "eip155:421614",
     chain: arbitrumSepolia,
-    verifiAddress: "0xF678fFBbBf86dBBe7D2b54c6B004C63792d38C3a",
+    verifiAddress: "0x932cb1765157970250f924f9dC0113B847342f4A",
     appkitnetwork: {
       caipNetworkId: "eip155:421614",
       id: "0x66eee",
